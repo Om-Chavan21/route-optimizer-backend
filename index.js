@@ -2,7 +2,7 @@
 
 const express = require("express");
 const cors = require("cors");
-const puppeteer = require("puppeteer"); // Import Puppeteer for URL resolution
+const puppeteer = require("puppeteer-core"); // Use puppeteer-core instead of puppeteer
 const axios = require("axios"); // Import Axios for making HTTP requests
 require("dotenv").config();
 
@@ -12,28 +12,21 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Function to fe Google Maps short link to place name and coordinates
+// Function to resolve Google Maps short link to place name and coordinates
 async function resolveLink(url) {
   try {
     console.log(`Resolving link: ${url}`);
 
-    // Use Puppeteer to visit the shortened link and extract the final URL
+    // Launch Puppeteer with the correct executable path for Chrome
     const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      //   executablePath:
-      //     process.env.NODE_ENV === "production"
-      //       ? process.env.PUPPETEER_EXECUTABLE_PATH
-      //       : puppeteer.executablePath(),
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser", // Default path for Chromium
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
     await page.goto(url);
     const finalUrl = await page.url(); // Get final URL after redirect
+
     await browser.close();
 
     // Extract latitude and longitude from the final URL
@@ -87,12 +80,6 @@ async function getDistanceMatrix(locations) {
     }
 
     console.log("Distance matrix fetched successfully.");
-
-    // Log the entire distance matrix response
-    console.log(
-      "Distance Matrix Response:",
-      JSON.stringify(response.data, null, 2)
-    );
 
     // Create a distance matrix based on the response
     const distanceMatrix = response.data.rows.map((row) =>
@@ -155,18 +142,6 @@ function tspBruteForce(locations, distanceMatrix) {
   return bestRoute.map((index) => locations[index].name);
 }
 
-// Function to generate Google Maps direction link based on optimized route
-function generateGoogleMapsLink(optimizedRoute) {
-  const baseUrl = "https://www.google.com/maps/dir/";
-
-  // Format each location for the URL
-  const formattedLocations = optimizedRoute
-    .map((location) => encodeURIComponent(location.replace(/,\s+/g, ",")))
-    .join("/");
-
-  return `${baseUrl}${formattedLocations}`;
-}
-
 app.post("/optimize_route", async (req, res) => {
   const locations = req.body.locations;
 
@@ -198,13 +173,7 @@ app.post("/optimize_route", async (req, res) => {
     // Calculate optimized route using the distance matrix
     const optimizedRoute = tspBruteForce(validLocations, distanceMatrix);
 
-    // Generate Google Maps direction link based on optimized route
-    const googleMapsLink = generateGoogleMapsLink(optimizedRoute);
-
-    res.json({
-      optimized_route: optimizedRoute,
-      google_maps_link: googleMapsLink,
-    }); // Return optimized order and link
+    res.json({ optimized_route: optimizedRoute }); // Return only the keys of the optimized order
   } catch (error) {
     console.error("Error in /optimize_route:", error.message); // Log detailed error
     res.status(500).json({ error: error.message });
