@@ -31,7 +31,8 @@ async function resolveLink(url) {
     const page = await browser.newPage();
     console.log("New page created.");
 
-    await page.goto(url);
+    // await page.goto(url);
+    await page.goto("https://example.com");
     console.log(`Navigated to URL: ${url}`);
 
     const finalUrl = page.url(); // Get final URL after redirect
