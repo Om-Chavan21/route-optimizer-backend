@@ -1,5 +1,3 @@
-// backend/index.js
-
 const express = require("express");
 const cors = require("cors");
 const puppeteer = require("puppeteer"); // Import Puppeteer for URL resolution
@@ -12,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Function to fe Google Maps short link to place name and coordinates
+// Function to resolve Google Maps short link to place name and coordinates
 async function resolveLink(url) {
   try {
     console.log(`Resolving link: ${url}`);
@@ -26,15 +24,21 @@ async function resolveLink(url) {
         "--single-process",
         "--no-zygote",
       ],
-      //   executablePath:
-      //     process.env.NODE_ENV === "production"
-      //       ? process.env.PUPPETEER_EXECUTABLE_PATH
-      //       : puppeteer.executablePath(),
     });
+
+    console.log("Puppeteer browser launched.");
+
     const page = await browser.newPage();
+    console.log("New page created.");
+
     await page.goto(url);
+    console.log(`Navigated to URL: ${url}`);
+
     const finalUrl = page.url(); // Get final URL after redirect
+    console.log(`Final URL after redirection: ${finalUrl}`);
+
     await browser.close();
+    console.log("Puppeteer browser closed.");
 
     // Extract latitude and longitude from the final URL
     const latLngMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
@@ -58,6 +62,7 @@ async function resolveLink(url) {
     console.log(
       `Resolved link: ${url} -> ${placeName} (Lat: ${latitude}, Lng: ${longitude})`
     );
+
     return { name: placeName, coords: { lat: latitude, lng: longitude } }; // Return object with name and coords
   } catch (error) {
     console.error(`Error resolving link ${url}:`, error.message);
@@ -78,6 +83,7 @@ async function getDistanceMatrix(locations) {
 
   try {
     console.log(`Fetching distance matrix from API...`);
+
     const response = await axios.get(url);
 
     if (response.data.status !== "OK") {
@@ -146,12 +152,16 @@ function tspBruteForce(locations, distanceMatrix) {
   }
 
   console.log("Starting TSP algorithm...");
+
   backtrack(-1, 0, 0, []);
+
   console.log("TSP algorithm completed.");
+
   console.log(
     "Optimized route:",
     bestRoute.map((index) => locations[index].name)
   );
+
   return bestRoute.map((index) => locations[index].name);
 }
 
