@@ -12,13 +12,25 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Function to resolve Google Maps short link to place name and coordinates
+// Function to fe Google Maps short link to place name and coordinates
 async function resolveLink(url) {
   try {
     console.log(`Resolving link: ${url}`);
 
     // Use Puppeteer to visit the shortened link and extract the final URL
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--disable-setuid-sandbox",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+      ],
+      //   executablePath:
+      //     process.env.NODE_ENV === "production"
+      //       ? process.env.PUPPETEER_EXECUTABLE_PATH
+      //       : puppeteer.executablePath(),
+    });
     const page = await browser.newPage();
     await page.goto(url);
     const finalUrl = await page.url(); // Get final URL after redirect
