@@ -181,6 +181,10 @@ function generateGoogleMapsLink(optimizedRoute) {
   return `${baseUrl}${formattedLocations}`;
 }
 
+app.get("/", (req, res) => {
+  res.send("Hello from backend");
+});
+
 app.post("/optimize_route", async (req, res) => {
   const locations = req.body.locations;
 
