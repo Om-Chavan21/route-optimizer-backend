@@ -11,73 +11,64 @@ app.use(cors());
 app.use(express.json());
 
 // Function to resolve Google Maps short link to place name and coordinates
-async function resolveLinks(urls) {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--disable-setuid-sandbox",
-      "--no-sandbox",
-      "--single-process",
-      "--no-zygote",
-    ],
-  });
+async function resolveLink(url) {
+  try {
+    console.log(`Resolving link: ${url}`);
 
-  console.log("Puppeteer browser launched.");
-  const page = await browser.newPage();
-  console.log("New page created.");
+    // Use Puppeteer to visit the shortened link and extract the final URL
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--disable-setuid-sandbox",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+      ],
+    });
 
-  const results = [];
+    console.log("Puppeteer browser launched.");
 
-  for (const url of urls) {
-    try {
-      console.log(`Resolving link: ${url}`);
-      await page.goto(url, { waitUntil: "load" });
-      console.log(`Navigated to URL: ${url}`);
+    const page = await browser.newPage();
+    console.log("New page created.");
 
-      const finalUrl = page.url(); // Get final URL after redirect
-      console.log(`Final URL after redirection: ${finalUrl}`);
+    // await page.goto(url, {waitUntil: "load"});
+    await page.goto(url, { waitUntil: "load" });
+    console.log(`Navigated to URL: ${url}`);
 
-      // Extract latitude and longitude from the final URL
-      const latLngMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-      if (!latLngMatch) {
-        console.warn(
-          `Could not extract latitude and longitude from ${finalUrl}`
-        );
-        results.push(null);
-        continue; // Skip to the next URL
-      }
+    const finalUrl = page.url(); // Get final URL after redirect
+    console.log(`Final URL after redirection: ${finalUrl}`);
 
-      const latitude = parseFloat(latLngMatch[1]);
-      const longitude = parseFloat(latLngMatch[2]);
+    await browser.close();
+    console.log("Puppeteer browser closed.");
 
-      // Extract place name from the final URL
-      const placeMatch = finalUrl.match(/place\/([^/?]+)/);
-      if (!placeMatch) {
-        console.warn(`Could not extract place name from ${finalUrl}`);
-        results.push(null);
-        continue; // Skip to the next URL
-      }
-
-      const placeName = decodeURIComponent(placeMatch[1].replace(/\+/g, " "));
-
-      console.log(
-        `Resolved link: ${url} -> ${placeName} (Lat: ${latitude}, Lng: ${longitude})`
-      );
-
-      results.push({
-        name: placeName,
-        coords: { lat: latitude, lng: longitude },
-      });
-    } catch (error) {
-      console.error(`Error resolving link ${url}:`, error.message);
-      results.push(null); // Return null on error
+    // Extract latitude and longitude from the final URL
+    const latLngMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (!latLngMatch) {
+      console.warn(`Could not extract latitude and longitude from ${finalUrl}`);
+      return null; // Return null if extraction fails
     }
+
+    const latitude = parseFloat(latLngMatch[1]);
+    const longitude = parseFloat(latLngMatch[2]);
+
+    // Extract place name from the final URL
+    const placeMatch = finalUrl.match(/place\/([^/?]+)/);
+    if (!placeMatch) {
+      console.warn(`Could not extract place name from ${finalUrl}`);
+      return null; // Return null if extraction fails
+    }
+
+    const placeName = decodeURIComponent(placeMatch[1].replace(/\+/g, " "));
+
+    console.log(
+      `Resolved link: ${url} -> ${placeName} (Lat: ${latitude}, Lng: ${longitude})`
+    );
+
+    return { name: placeName, coords: { lat: latitude, lng: longitude } }; // Return object with name and coords
+  } catch (error) {
+    console.error(`Error resolving link ${url}:`, error.message);
+    return null; // Return null on error
   }
-
-  await browser.close();
-  console.log("Puppeteer browser closed.");
-
-  return results;
 }
 
 // Function to get distances between all pairs of locations using Google Distance Matrix API
@@ -103,6 +94,12 @@ async function getDistanceMatrix(locations) {
     }
 
     console.log("Distance matrix fetched successfully.");
+
+    // Log the entire distance matrix response
+    // console.log(
+    //   "Distance Matrix Response:",
+    //   JSON.stringify(response.data, null, 2)
+    // );
 
     // Create a distance matrix based on the response
     const distanceMatrix = response.data.rows.map((row) =>
@@ -187,8 +184,13 @@ app.post("/optimize_route", async (req, res) => {
   try {
     console.log("Received locations:", locations);
 
-    // Resolve all Google Maps links to place names and coordinates
-    const locationData = await resolveLinks(locations);
+    const locationDataPromises = locations.map(async (url) => {
+      // Resolve Google Maps link to place name and coordinates
+      return await resolveLink(url);
+    });
+
+    // Wait for all promises to resolve
+    const locationData = await Promise.all(locationDataPromises);
 
     console.log("Resolved location data:", locationData);
 
