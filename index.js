@@ -37,19 +37,6 @@ async function resolveLinks(urls) {
       const finalUrl = page.url(); // Get final URL after redirect
       console.log(`Final URL after redirection: ${finalUrl}`);
 
-      // Extract latitude and longitude from the final URL
-      const latLngMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-      if (!latLngMatch) {
-        console.warn(
-          `Could not extract latitude and longitude from ${finalUrl}`
-        );
-        results.push(null);
-        continue; // Skip to the next URL
-      }
-
-      const latitude = parseFloat(latLngMatch[1]);
-      const longitude = parseFloat(latLngMatch[2]);
-
       // Extract place name from the final URL
       const placeMatch = finalUrl.match(/place\/([^/?]+)/);
       if (!placeMatch) {
@@ -60,13 +47,10 @@ async function resolveLinks(urls) {
 
       const placeName = decodeURIComponent(placeMatch[1].replace(/\+/g, " "));
 
-      console.log(
-        `Resolved link: ${url} -> ${placeName} (Lat: ${latitude}, Lng: ${longitude})`
-      );
+      console.log(`Resolved link: ${url} -> ${placeName}`);
 
       results.push({
         name: placeName,
-        coords: { lat: latitude, lng: longitude },
       });
     } catch (error) {
       console.error(`Error resolving link ${url}:`, error.message);
@@ -182,6 +166,7 @@ function generateGoogleMapsLink(optimizedRoute) {
 }
 
 app.get("/", (req, res) => {
+  console.log("home pinged");
   res.send("Hello from backend");
 });
 
